@@ -2,17 +2,25 @@ import { create } from 'zustand';
 import { prefersReducedMotion } from '../../shared/hooks/usePrefersReducedMotion';
 import { randomSeed } from '../../shared/random';
 
+/** User tweaks on top of the seed's generated values (reset on a new seed). */
+export interface Tweaks {
+  seaShift: number;
+  tempShift: number;
+  humidShift: number;
+}
+
+const NO_TWEAKS: Tweaks = { seaShift: 0, tempShift: 0, humidShift: 0 };
+
 /** State private to this project. No other project imports it. */
-interface PlanetState {
+interface PlanetState extends Tweaks {
   seed: number;
   autoRotate: boolean;
-  /** User offset added to the seed's sea level. */
-  seaShift: number;
   showMoons: boolean;
   setSeed: (seed: number) => void;
   newSeed: () => void;
   setAutoRotate: (on: boolean) => void;
-  setSeaShift: (v: number) => void;
+  setTweak: (key: keyof Tweaks, value: number) => void;
+  resetTweaks: () => void;
   setShowMoons: (on: boolean) => void;
 }
 
@@ -20,20 +28,23 @@ export const usePlanetStore = create<PlanetState>()((set) => ({
   seed: randomSeed(),
   // Respect reduced motion: start still; the user can opt in.
   autoRotate: !prefersReducedMotion(),
-  seaShift: 0,
+  showMoons: true,
+  ...NO_TWEAKS,
   setSeed: (seed) => {
-    set({ seed, seaShift: 0 });
+    set({ seed, ...NO_TWEAKS });
   },
   newSeed: () => {
-    set({ seed: randomSeed(), seaShift: 0 });
+    set({ seed: randomSeed(), ...NO_TWEAKS });
   },
   setAutoRotate: (autoRotate) => {
     set({ autoRotate });
   },
-  setSeaShift: (seaShift) => {
-    set({ seaShift });
+  setTweak: (key, value) => {
+    set({ [key]: value });
   },
-  showMoons: true,
+  resetTweaks: () => {
+    set(NO_TWEAKS);
+  },
   setShowMoons: (showMoons) => {
     set({ showMoons });
   },

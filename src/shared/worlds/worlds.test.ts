@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dcos, dsin } from './dmath';
 import { bodyStates, generateSystem } from './system';
-import { moonsForPlanet, worldFromSeed } from './world';
+import { moonsForPlanet, TERRAIN_TYPES, worldFromSeed } from './world';
 
 describe('dmath', () => {
   it('matches Math.sin/cos to ~1e-9 over a wide range', () => {
@@ -16,6 +16,32 @@ describe('world generator', () => {
   it('is deterministic', () => {
     expect(worldFromSeed(1234)).toEqual(worldFromSeed(1234));
     expect(moonsForPlanet(1234)).toEqual(moonsForPlanet(1234));
+  });
+
+  it('produces a diverse set of archetypes, terrains and inhabited worlds', () => {
+    const worlds = Array.from({ length: 2000 }, (_, i) => worldFromSeed(i));
+    const terrains = new Set(worlds.map((w) => w.terrain));
+    for (const t of TERRAIN_TYPES.filter((t) => t !== 'cratered')) expect(terrains).toContain(t);
+    expect(terrains).toContain('cratered'); // barren planets
+    expect(new Set(worlds.map((w) => w.archetype)).size).toBeGreaterThanOrEqual(10);
+    const inhabited = worlds.filter((w) => w.cities > 0).length / worlds.length;
+    expect(inhabited).toBeGreaterThan(0.2);
+    expect(inhabited).toBeLessThan(0.7);
+    for (const w of worlds) {
+      expect(w.cities).toBeGreaterThanOrEqual(0);
+      expect(w.cities).toBeLessThanOrEqual(1);
+      expect(w.temperature).toBeGreaterThanOrEqual(-1);
+      expect(w.temperature).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('keeps moons lifeless and uninhabited', () => {
+    for (let seed = 0; seed < 300; seed++) {
+      for (const m of moonsForPlanet(seed)) {
+        expect(m.world.life).toBe(0);
+        expect(m.world.cities).toBe(0);
+      }
+    }
   });
 
   it('gives planets and moons sensible ranges', () => {

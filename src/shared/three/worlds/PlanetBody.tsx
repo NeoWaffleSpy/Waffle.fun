@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { AdditiveBlending, BackSide, Color, type Mesh, ShaderMaterial, Vector3 } from 'three';
-import type { WorldParams } from '../../worlds/world';
+import { type Palette, TERRAIN_TYPES, type WorldParams } from '../../worlds/world';
 import {
   atmosphereFragment,
   atmosphereVertex,
@@ -14,6 +14,25 @@ import {
 /** Default light direction (world space) when the caller has no star position. */
 const DEFAULT_SUN = new Vector3(1, 0.35, 0.7).normalize();
 
+/** Palette entry → shader uniform. Add a colour to Palette + here + the shader. */
+const PALETTE_UNIFORMS: Record<keyof Palette, string> = {
+  deep: 'uDeep',
+  shallow: 'uShallow',
+  beach: 'uBeach',
+  tundra: 'uTundra',
+  taiga: 'uTaiga',
+  grass: 'uGrass',
+  forest: 'uForest',
+  jungle: 'uJungle',
+  savanna: 'uSavanna',
+  desert: 'uDesert',
+  rock: 'uRock',
+  snow: 'uSnow',
+  city: 'uCity',
+  lights: 'uLights',
+  atmosphere: 'uAtmo',
+};
+
 // Phones get fewer noise octaves: per-pixel fBm is the dominant GPU cost.
 const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
@@ -21,6 +40,9 @@ export interface PlanetBodyProps {
   world: WorldParams;
   /** Added to the world's sea level (Planet Forge slider). */
   seaShift?: number;
+  /** Added to the world's global temperature / humidity (Planet Forge sliders). */
+  tempShift?: number;
+  humidShift?: number;
   /** Icosahedron subdivision. Lower for small/far bodies. */
   detail?: number;
   /** 'low' = fewer noise octaves (many bodies on screen, or phones). */
@@ -42,6 +64,8 @@ export interface PlanetBodyProps {
 export function PlanetBody({
   world,
   seaShift = 0,
+  tempShift = 0,
+  humidShift = 0,
   detail = 64,
   quality = 'high',
   sunDirection = DEFAULT_SUN,
@@ -65,17 +89,18 @@ export function PlanetBody({
           uScale: { value: 1 },
           uSeaLevel: { value: 0 },
           uMountains: { value: 0.5 },
+          uTerrain: { value: 0 },
+          uWarp: { value: 0 },
+          uTemp: { value: 0 },
+          uHumid: { value: 0 },
+          uLife: { value: 1 },
+          uCities: { value: 0 },
           uSunDir: { value: sunDirection },
           uOceanGloss: { value: 1 },
           uHasAtmo: { value: 1 },
-          uDeep: { value: new Color() },
-          uShallow: { value: new Color() },
-          uSand: { value: new Color() },
-          uLow: { value: new Color() },
-          uHigh: { value: new Color() },
-          uRock: { value: new Color() },
-          uSnow: { value: new Color() },
-          uAtmo: { value: new Color() },
+          ...Object.fromEntries(
+            Object.values(PALETTE_UNIFORMS).map((name) => [name, { value: new Color() }]),
+          ),
         },
       }),
     // sunDirection is applied in the effect below; don't rebuild for it.
@@ -125,22 +150,33 @@ export function PlanetBody({
     u.uScale!.value = world.scale;
     u.uSeaLevel!.value = world.seaLevel + seaShift;
     u.uMountains!.value = world.mountains;
+    u.uTerrain!.value = TERRAIN_TYPES.indexOf(world.terrain);
+    u.uWarp!.value = world.warp;
+    u.uTemp!.value = world.temperature + tempShift;
+    u.uHumid!.value = world.humidity + humidShift;
+    u.uLife!.value = world.life;
+    u.uCities!.value = world.cities;
     u.uOceanGloss!.value = world.oceanGloss;
     u.uHasAtmo!.value = world.hasAtmosphere ? 1 : 0;
     const c = world.colors;
-    (u.uDeep!.value as Color).set(c.deep);
-    (u.uShallow!.value as Color).set(c.shallow);
-    (u.uSand!.value as Color).set(c.sand);
-    (u.uLow!.value as Color).set(c.low);
-    (u.uHigh!.value as Color).set(c.high);
-    (u.uRock!.value as Color).set(c.rock);
-    (u.uSnow!.value as Color).set(c.snow);
-    (u.uAtmo!.value as Color).set(c.atmosphere);
+    for (const [key, name] of Object.entries(PALETTE_UNIFORMS) as [keyof Palette, string][]) {
+      (u[name]!.value as Color).set(c[key]);
+    }
     (cloudMat.uniforms.uOffset!.value as Vector3).set(...world.offset);
     cloudMat.uniforms.uCover!.value = world.cloudCover;
     (atmoMat.uniforms.uAtmo!.value as Color).set(c.atmosphere);
     invalidate(); // needed in frameloop="demand"
-  }, [world, seaShift, sunDirection, planetMat, cloudMat, atmoMat, invalidate]);
+  }, [
+    world,
+    seaShift,
+    tempShift,
+    humidShift,
+    sunDirection,
+    planetMat,
+    cloudMat,
+    atmoMat,
+    invalidate,
+  ]);
 
   // Materials made with `new` aren't owned by R3F: free them on unmount.
   useEffect(

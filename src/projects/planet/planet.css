@@ -82,3 +82,38 @@
   text-transform: uppercase;
   color: #7f87a6;
 }
+
+.planet__people {
+  color: #ffd27a;
+}
+
+.planet__slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.planet__slider-head small {
+  font-size: 0.75rem;
+  color: #7f87a6;
+}
+
+.planet__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.planet__foot .planet__forge {
+  margin: 0;
+}
+.planet__reset {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #b9c0d8;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}

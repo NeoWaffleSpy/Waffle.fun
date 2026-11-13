@@ -4,7 +4,10 @@ A hub of small, self-contained interactive mini-projects (some 3D, some 2D), in 
 spirit of neil.fun. Static site, hosted free on GitHub Pages.
 
 - **Planet Forge** (3D): a procedural planet and its moons, generated entirely in
-  shaders from a seed. Orbit controls, "new seed", sea level, shareable
+  shaders from a seed: 10 planet archetypes, 7 terrain shapes (continents,
+  archipelagos, supercontinents, terraced highlands, canyons, dunes, craters),
+  climate-driven biomes (ice, tundra, taiga, grassland, forest, jungle, savanna,
+  desert) and cities that light up on the night side. Climate sliders, shareable
   `#/planet?seed=1234` URLs. Zero downloaded assets.
 - **Gravity Courier** (3D game): deliver cargo across a procedural star system with
   gravity slingshots. Daily shared route, trajectory forecast, ghost replays,
@@ -193,16 +196,16 @@ refreshes always work.
 
 | Chunk                          | Budget               | Measured (gzip)                        |
 | ------------------------------ | -------------------- | -------------------------------------- |
-| Hub first load (JS)            | < 80 KB              | **70.3 KB**                            |
+| Hub first load (JS)            | < 80 KB              | **70.4 KB**                            |
 | Hub CSS                        | —                    | 1.6 KB                                 |
 | Shared 3D vendor (three + R3F) | "small as practical" | **238.5 KB** (910 KB raw)              |
-| `planet` (excl. shared vendor) | < 50 KB              | **9.6 KB** (incl. shared `worlds`)     |
-| `gravity-courier`              | < 50 KB              | **20.4 KB** (incl. shared `worlds`)    |
+| `planet` (excl. shared vendor) | < 50 KB              | **12.9 KB** (incl. shared `worlds`)    |
+| `gravity-courier`              | < 50 KB              | **23.7 KB** (incl. shared `worlds`)    |
 | `waffle-tower`                 | < 50 KB              | **5.0 KB**, loads three-vendor: **no** |
 
 Project sizes include every chunk the project needs beyond the hub and the 3D vendor,
 including shared ones, so the real marginal cost of the second 3D project is lower:
-`worlds` (6.2 KB) is already cached.
+`worlds` (9.0 KB) is already cached.
 
 Measured with Vite 8.3 / three r187. Re-run `npm run size` for current numbers, and
 `npm run analyze` for a treemap.
@@ -222,21 +225,40 @@ How chunks are split (`vite.config.ts → codeSplitting.groups`):
 
 Planets and moons are defined once, in shared code that no single project owns:
 
-| File                                 | What it decides                                        |
-| ------------------------------------ | ------------------------------------------------------ |
-| `shared/worlds/world.ts`             | biome, palette, terrain params, name; moons per planet |
-| `shared/worlds/system.ts`            | star systems built from those planets + moons (games)  |
-| `shared/three/worlds/shaders.ts`     | terrain / cloud / atmosphere GLSL                      |
-| `shared/three/worlds/PlanetBody.tsx` | the R3F component that renders one world               |
+| File                                 | What it decides                                                            |
+| ------------------------------------ | -------------------------------------------------------------------------- |
+| `shared/worlds/world.ts`             | archetype, terrain shape, climate, cities, palette, name; moons per planet |
+| `shared/worlds/system.ts`            | star systems built from those planets + moons (games)                      |
+| `shared/three/worlds/shaders.ts`     | terrain shapes, climate → biome, cities, clouds, atmosphere (GLSL)         |
+| `shared/three/worlds/PlanetBody.tsx` | the R3F component that renders one world                                   |
 
 Planet Forge is a thin UI over these files, and Gravity Courier renders its systems
 with the same `PlanetBody`. **Improve the generator or shaders here and both projects
 change.** A system planet with seed N is identical to `#/planet?seed=N`, and the game's
 route links open each planet in Planet Forge.
 
-Heads-up: changing `world.ts` or `system.ts` changes what each seed produces, so it
-also changes Gravity Courier's systems and invalidates old ghosts/leaderboards for
-those seeds. Shader-only changes (looks) are always safe.
+How a world is built:
+
+1. **Archetype** (`ARCHETYPES` in `world.ts`): Terran, Archipelago, Pangaea, Desert,
+   Canyon, Jungle, Ice, Ocean, Alien, Barren. It sets the terrain shape, global
+   temperature/humidity, life level, city chance and palette. Add one by appending
+   an entry.
+2. **Terrain shape** (`TERRAIN_TYPES` + the `terrain()` GLSL function): continents,
+   archipelago, pangaea, highlands (terraces), canyons, dunes, cratered. Every shape
+   shares domain-warped fBm + ridged mountains, then applies its own twist.
+3. **Biome per pixel**: temperature = global + latitude falloff − altitude (high
+   ground only) + noise; humidity = global + noise. A Whittaker-style blend picks
+   tundra/taiga, desert/grass/forest or desert/savanna/jungle, with snow and sea ice
+   where it's frozen. Lifeless worlds and moons (`life = 0`) use altitude bands.
+4. **Cities**: habitable lowlands (mild, unfrozen, above the beach) × metro-region
+   noise × town noise. Grey sprawl by day, point-like warm lights on the night side.
+
+**Look vs physics.** Everything above is visual and can change freely. Physics
+(radius, mass, orbits, moon layout, routes) lives in `system.ts` and the random-draw
+order of `moonsForPlanet()`. `src/shared/worlds/physics.test.ts` snapshots it, so CI
+fails if a visual change accidentally alters gameplay, which would break every saved
+ghost and leaderboard. If you change physics on purpose, bump `REPLAY_VERSION` and
+update the snapshots (`npx vitest -u`).
 
 ## Gravity Courier: how it stays deterministic
 
