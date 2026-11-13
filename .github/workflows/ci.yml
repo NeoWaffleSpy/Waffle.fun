@@ -1,0 +1,101 @@
+# Continuous integration: runs on every pull request, and is reused by
+# deploy.yml on pushes to main (so main and PRs go through the exact same gates).
+#
+# Gates:
+#   quality     ESLint, Prettier, TypeScript
+#   build       production build + bundle budgets (hub < 80 KB, projects < 50 KB,
+#               2D projects never load three.js); size table in the job summary
+#   lighthouse  hub must score >= 90 on performance and accessibility
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      pages:
+        description: Build with the GitHub Pages base path and upload the Pages artifact.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the previous, now-stale run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, format & types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+
+  build:
+    name: Build & bundle budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read # configure-pages reads the site's base path
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Configure Pages
+        id: pages
+        if: ${{ inputs.pages }}
+        uses: actions/configure-pages@v5
+
+      - name: Build
+        run: npm run build
+        env:
+          # Pages: '/<repo>/' for project sites, '/' for user sites & custom domains.
+          BASE_PATH: ${{ inputs.pages && format('{0}/', steps.pages.outputs.base_path) || '/' }}
+          VITE_BACKEND: local
+
+      - name: Check bundle budgets
+        run: npm run size # fails on any budget violation; writes a table to the job summary
+
+      - name: Upload Pages artifact
+        if: ${{ inputs.pages }}
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  lighthouse:
+    name: Lighthouse (hub)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Own root-path build so LHCI's static server can serve dist/ as-is.
+      - run: npm run build
+        env:
+          VITE_BACKEND: local
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true # full HTML reports attached to the run
+          temporaryPublicStorage: false # keep reports private

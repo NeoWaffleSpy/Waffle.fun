@@ -1,0 +1,72 @@
+.planet {
+  position: absolute;
+  inset: 0;
+  background: #04050c;
+  color: #fff;
+}
+
+.planet__canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.planet__panel {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: min(300px, calc(100% - 24px));
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(12, 14, 28, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.planet__title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.planet__meta {
+  margin: 2px 0 12px;
+  color: #b9c0d8;
+  font-size: 0.9rem;
+}
+.planet__meta code {
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.planet__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.planet__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.planet__toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: #f4b448;
+}
+
+.planet__slider {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #b9c0d8;
+}
+.planet__slider input {
+  width: 100%;
+  accent-color: #f4b448;
+}

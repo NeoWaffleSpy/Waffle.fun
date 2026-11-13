@@ -1,0 +1,32 @@
+# Weekly dependency updates as a few grouped PRs (not one PR per package).
+# Every Dependabot PR runs CI, so a bump that breaks a bundle budget or the
+# Lighthouse score is caught before merge.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      three:
+        patterns: ['three', '@types/three', '@react-three/*']
+      build-tooling:
+        patterns: ['vite', '@vitejs/*', 'vite-plugin-pwa', 'rollup-plugin-visualizer', 'typescript']
+      lint-format:
+        patterns: ['eslint', '@eslint/*', 'eslint-*', 'typescript-eslint', 'prettier', 'globals']
+      other:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']

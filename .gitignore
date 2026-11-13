@@ -1,0 +1,11 @@
+node_modules
+dist
+dev-dist
+*.local
+.env.local
+.env.*.local
+*.tsbuildinfo
+.DS_Store
+
+# Local Claude Code session config
+.claude/
