@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from '../../shared/hooks/usePrefersReducedMotion';
 import { TowerEngine } from './engine';
-import { HighScores } from './HighScores';
+import { HighScores } from '../../shared/components/HighScores';
 import { useTowerStore } from './store';
 import './waffle-tower.css';
 
@@ -152,7 +152,7 @@ export default function WaffleTower() {
             <p className="tower__final">
               You stacked <strong>{score}</strong> {score === 1 ? 'waffle' : 'waffles'}.
             </p>
-            <HighScores key={round} pendingScore={score} meta={meta} />
+            <HighScores key={round} game="waffle-tower" pendingScore={score} meta={meta} />
             <button type="button" className="btn" onClick={restart} autoFocus>
               Play again
             </button>

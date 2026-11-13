@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useState, type SyntheticEvent } from 'react';
 import { SCORE_LIMITS, scoreService, type ScoreEntry } from '../../services';
+import './highscores.css';
 
-export const GAME_ID = 'waffle-tower';
 const NAME_KEY = 'waffle:player-name';
 
 function loadName(): string {
@@ -13,12 +13,16 @@ function loadName(): string {
 }
 
 interface Props {
+  /** ScoreService game id (one leaderboard per id). */
+  game: string;
+  title?: string;
   /** Score to offer for submission, or null when just browsing. */
   pendingScore: number | null;
   meta?: Record<string, unknown>;
 }
 
-export function HighScores({ pendingScore, meta }: Props) {
+/** Local (or, later, remote) leaderboard + name/submit form. Shared by all games. */
+export function HighScores({ game, title = 'Local high scores', pendingScore, meta }: Props) {
   const [scores, setScores] = useState<ScoreEntry[] | null>(null);
   const [name, setName] = useState(loadName);
   const [saved, setSaved] = useState<string | null>(null);
@@ -27,10 +31,10 @@ export function HighScores({ pendingScore, meta }: Props) {
 
   const fetchScores = useCallback(
     () =>
-      scoreService.getTopScores(GAME_ID, 10).then(setScores, (e: unknown) => {
+      scoreService.getTopScores(game, 10).then(setScores, (e: unknown) => {
         setError(e instanceof Error ? e.message : 'Could not load scores');
       }),
-    [],
+    [game],
   );
 
   // Load once on mount. (The parent re-keys this component per game over,
@@ -45,7 +49,7 @@ export function HighScores({ pendingScore, meta }: Props) {
     e.preventDefault();
     if (!canSubmit) return;
     try {
-      await scoreService.submitScore(GAME_ID, name, pendingScore, meta);
+      await scoreService.submitScore(game, name, pendingScore, meta);
       try {
         localStorage.setItem(NAME_KEY, name);
       } catch {
@@ -92,7 +96,7 @@ export function HighScores({ pendingScore, meta }: Props) {
         </p>
       )}
 
-      <h2 className="hs__title">Local high scores</h2>
+      <h2 className="hs__title">{title}</h2>
       {scores === null ? (
         <p className="hs__empty">Loading…</p>
       ) : scores.length === 0 ? (

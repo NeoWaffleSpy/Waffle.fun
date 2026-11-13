@@ -1,2 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Always LF in the working tree (Prettier enforces LF; avoids CRLF churn on Windows)
+* text=auto eol=lf

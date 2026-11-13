@@ -66,6 +66,41 @@ export default tseslint.config(
     },
   },
   {
+    // Deterministic code (replays + future server-side verification) must give
+    // bit-identical results on every engine: only IEEE-exact operations.
+    files: ['src/shared/worlds/**/*.ts', 'src/projects/*/sim/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        ...[
+          'sin',
+          'cos',
+          'tan',
+          'asin',
+          'acos',
+          'atan',
+          'atan2',
+          'pow',
+          'exp',
+          'log',
+          'hypot',
+          'cbrt',
+        ].map((property) => ({
+          object: 'Math',
+          property,
+          message: 'Not bit-identical across JS engines. Use dsin/dcos from shared/worlds/dmath.',
+        })),
+        { object: 'Math', property: 'random', message: 'Use a seeded PRNG (mulberry32).' },
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'Date', message: 'Simulations must not depend on wall-clock time.' },
+        { name: 'performance', message: 'Simulations must not depend on wall-clock time.' },
+      ],
+    },
+  },
+  {
     files: ['*.config.{js,ts}', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },

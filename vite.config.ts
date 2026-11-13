@@ -53,7 +53,13 @@ export default defineConfig(({ mode }) => {
         // 3D vendor chunk: you only pay for what you open. Those are cached at
         // runtime, the first time a project is opened (see runtimeCaching).
         globPatterns: ['**/*.{js,css,html,svg,webmanifest}'],
-        globIgnores: ['assets/p-*.js', 'assets/three-vendor-*.js', 'stats.html', '.vite/**'],
+        globIgnores: [
+          'assets/p-*.js',
+          'assets/three-vendor-*.js',
+          'assets/worlds-*.js',
+          'stats.html',
+          '.vite/**',
+        ],
         navigateFallback: 'index.html',
         // Activate new deploys on the next navigation. (The plugin only sets
         // these automatically for injectRegister: 'auto', not 'script-defer'.)
@@ -113,6 +119,12 @@ export default defineConfig(({ mode }) => {
                 name: 'three-vendor',
                 test: /node_modules[\\/](three|three-stdlib|@react-three|react-reconciler|its-fine|suspend-react|react-use-measure|camera-controls|maath|@use-gesture|troika[^\\/]*|meshline|stats-gl|tunnel-rat|detect-gpu)[\\/]/,
                 priority: 2,
+              },
+              {
+                // Shared world generator + 3D helpers (Planet Forge, Gravity Courier…).
+                name: 'worlds',
+                test: /[\\/]src[\\/]shared[\\/](worlds|three)[\\/]/,
+                priority: 1,
               },
               {
                 // React: changes rarely, so cache separately from app code.

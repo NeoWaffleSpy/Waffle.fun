@@ -3,9 +3,13 @@
 A hub of small, self-contained interactive mini-projects (some 3D, some 2D), in the
 spirit of neil.fun. Static site, hosted free on GitHub Pages.
 
-- **Planet Forge** (3D): a procedural planet generated entirely in shaders from a
-  seed. Orbit controls, "new seed", sea level, shareable `#/planet?seed=1234` URLs.
-  Zero downloaded assets.
+- **Planet Forge** (3D): a procedural planet and its moons, generated entirely in
+  shaders from a seed. Orbit controls, "new seed", sea level, shareable
+  `#/planet?seed=1234` URLs. Zero downloaded assets.
+- **Gravity Courier** (3D game): deliver cargo across a procedural star system with
+  gravity slingshots. Daily shared route, trajectory forecast, ghost replays,
+  synthesized audio, per-system leaderboards. Its planets and moons come from the
+  Planet Forge generator.
 - **Waffle Tower** (2D): a Canvas 2D stacking game with a local high-score list
   via `ScoreService`. Never loads three.js.
 
@@ -27,6 +31,7 @@ npm run preview      # serve dist/ locally
 npm run analyze      # build + dist/stats.html treemap (rollup-plugin-visualizer)
 npm run lint         # ESLint (typescript-eslint strict-type-checked)
 npm run format       # Prettier
+npm test             # Vitest: world generator, sim determinism, replay codec
 ```
 
 To preview exactly what Pages will serve (under a sub-path), build and preview with
@@ -49,12 +54,18 @@ src/
   styles.css             global + hub styles
   projects/
     registry.ts          single source of truth for all projects
-    planet/              3D: shaders, palette, store, R3F scene
-    waffle-tower/        2D: canvas engine, store, high scores
+    planet/              3D: Planet Forge UI over the shared world generator (+ moons)
+    gravity-courier/     3D game
+      sim/               deterministic simulation, route planner, replay codec, verifier
+      scene/             R3F scene: one fixed-step loop, interpolated rendering
+      ui/                menu, HUD, results, touch controls
+    waffle-tower/        2D: canvas engine, store
   shared/
-    components/          ProjectRoute shell, Loader, BackToHub, ErrorBoundary, WebGL fallback
+    components/          ProjectRoute shell, Loader, ErrorBoundary, HighScores, WebGL fallback
     hooks/               reduced motion, WebGL2 detection (no three import), document title
-    three/               SceneCanvas (R3F defaults), GLSL noise chunks. 3D projects only!
+    worlds/              world + moon + star-system generators, deterministic math (no three)
+    three/               SceneCanvas, GLSL noise, worlds/ (PlanetBody, StarBody, Starfield,
+                         OrbitRing, planet shaders). 3D projects only!
     router.tsx           ~1 KB hash router
     random.ts            seeded PRNG
   services/              backend abstraction (see services/README.md)
@@ -182,11 +193,16 @@ refreshes always work.
 
 | Chunk                          | Budget               | Measured (gzip)                        |
 | ------------------------------ | -------------------- | -------------------------------------- |
-| Hub first load (JS)            | < 80 KB              | **69.8 KB**                            |
+| Hub first load (JS)            | < 80 KB              | **70.3 KB**                            |
 | Hub CSS                        | —                    | 1.6 KB                                 |
-| Shared 3D vendor (three + R3F) | "small as practical" | **238.4 KB** (910 KB raw)              |
-| `planet` (excl. shared vendor) | < 50 KB              | **6.6 KB**                             |
-| `waffle-tower`                 | < 50 KB              | **4.5 KB**, loads three-vendor: **no** |
+| Shared 3D vendor (three + R3F) | "small as practical" | **238.5 KB** (910 KB raw)              |
+| `planet` (excl. shared vendor) | < 50 KB              | **9.6 KB** (incl. shared `worlds`)     |
+| `gravity-courier`              | < 50 KB              | **20.4 KB** (incl. shared `worlds`)    |
+| `waffle-tower`                 | < 50 KB              | **5.0 KB**, loads three-vendor: **no** |
+
+Project sizes include every chunk the project needs beyond the hub and the 3D vendor,
+including shared ones, so the real marginal cost of the second 3D project is lower:
+`worlds` (6.2 KB) is already cached.
 
 Measured with Vite 8.3 / three r187. Re-run `npm run size` for current numbers, and
 `npm run analyze` for a treemap.
@@ -196,7 +212,51 @@ How chunks are split (`vite.config.ts → codeSplitting.groups`):
 - `react-vendor`: react + react-dom + scheduler (hub).
 - `three-vendor`: three, R3F, the drei pieces actually used, three-stdlib. Downloaded
   once, shared by every 3D project, prefetched when you hover a 3D card.
+- `worlds`: the shared world generator + 3D helpers (`src/shared/worlds`,
+  `src/shared/three`), used by Planet Forge and Gravity Courier.
 - `p-<slug>`: one chunk per project.
+
+---
+
+## Shared world generator
+
+Planets and moons are defined once, in shared code that no single project owns:
+
+| File                                 | What it decides                                        |
+| ------------------------------------ | ------------------------------------------------------ |
+| `shared/worlds/world.ts`             | biome, palette, terrain params, name; moons per planet |
+| `shared/worlds/system.ts`            | star systems built from those planets + moons (games)  |
+| `shared/three/worlds/shaders.ts`     | terrain / cloud / atmosphere GLSL                      |
+| `shared/three/worlds/PlanetBody.tsx` | the R3F component that renders one world               |
+
+Planet Forge is a thin UI over these files, and Gravity Courier renders its systems
+with the same `PlanetBody`. **Improve the generator or shaders here and both projects
+change.** A system planet with seed N is identical to `#/planet?seed=N`, and the game's
+route links open each planet in Planet Forge.
+
+Heads-up: changing `world.ts` or `system.ts` changes what each seed produces, so it
+also changes Gravity Courier's systems and invalidates old ghosts/leaderboards for
+those seeds. Shader-only changes (looks) are always safe.
+
+## Gravity Courier: how it stays deterministic
+
+Ghost replays and (later) server-verified leaderboards need the simulation to give
+**bit-identical** results in every browser and on a server:
+
+- Fixed 60 Hz timestep with 2 substeps; rendering interpolates between steps.
+- Planets and moons move on analytic rails (no drift, any time is exact).
+- Only IEEE-exact math: `+ - * /`, `Math.sqrt`, plus our own `dsin`/`dcos`
+  (`shared/worlds/dmath.ts`). `Math.sin`, `pow`, `atan2`… can differ between engines
+  in the last bits. ESLint bans them (and `Date`, `Math.random`) in `shared/worlds/`
+  and any `projects/*/sim/` folder.
+- Fuel and scores are integers.
+
+A run is stored as its seed plus one input byte per tick, run-length encoded and
+base64url'd: about **20–2000 bytes** per run. That's what the ghost replays, and
+`sim/verify.ts` re-simulates it headlessly. When the backend arrives, the server runs
+`verifyRun()` on the submitted replay and keeps the score **it** computed. That's the
+anti-cheat plan from `services/README.md`. Tests (`npm test`) check that a recorded
+run re-simulates to exactly the same score.
 
 ---
 

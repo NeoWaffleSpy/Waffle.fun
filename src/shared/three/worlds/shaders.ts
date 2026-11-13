@@ -1,4 +1,4 @@
-import { fbm3, simplex3 } from '../../shared/three/noise.glsl';
+import { fbm3, simplex3 } from '../noise.glsl';
 
 /**
  * Terrain height on the unit sphere. Shared by vertex (silhouette) and
@@ -45,6 +45,8 @@ export const planetFragment = /* glsl */ `
 ${common}
 uniform vec3 uSunDir;
 uniform vec3 uDeep, uShallow, uSand, uLow, uHigh, uRock, uSnow, uAtmo;
+uniform float uOceanGloss;
+uniform float uHasAtmo;
 varying vec3 vObj;
 varying vec3 vWorld;
 varying vec3 vNormalW;
@@ -73,7 +75,7 @@ void main() {
   if (h < 0.0) {
     float depth = clamp(-h * 3.5, 0.0, 1.0);
     col = mix(uShallow, uDeep, pow(depth, 0.6));
-    spec = 1.0;
+    spec = uOceanGloss;
   } else {
     float t = clamp(h * 2.2, 0.0, 1.0);
     col = mix(uSand, uLow, smoothstep(0.0, 0.05, t));
@@ -97,7 +99,7 @@ void main() {
   float fresnel = pow(1.0 - max(dot(normalize(vNormalW), V), 0.0), 3.0);
 
   vec3 lit = col * (0.04 + diffuse * 1.05) + specular;
-  lit += uAtmo * fresnel * 0.55 * smoothstep(-0.3, 0.6, ndl);
+  lit += uAtmo * fresnel * 0.55 * uHasAtmo * smoothstep(-0.3, 0.6, ndl);
 
   gl_FragColor = vec4(lit, 1.0);
   #include <tonemapping_fragment>

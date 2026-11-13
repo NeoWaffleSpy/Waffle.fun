@@ -8,10 +8,12 @@ interface PlanetState {
   autoRotate: boolean;
   /** User offset added to the seed's sea level. */
   seaShift: number;
+  showMoons: boolean;
   setSeed: (seed: number) => void;
   newSeed: () => void;
   setAutoRotate: (on: boolean) => void;
   setSeaShift: (v: number) => void;
+  setShowMoons: (on: boolean) => void;
 }
 
 export const usePlanetStore = create<PlanetState>()((set) => ({
@@ -30,5 +32,9 @@ export const usePlanetStore = create<PlanetState>()((set) => ({
   },
   setSeaShift: (seaShift) => {
     set({ seaShift });
+  },
+  showMoons: true,
+  setShowMoons: (showMoons) => {
+    set({ showMoons });
   },
 }));

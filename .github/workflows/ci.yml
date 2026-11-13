@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, format & types
+    name: Lint, format, types & tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -41,6 +41,7 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
+      - run: npm test # determinism, replay codec, world generator
 
   build:
     name: Build & bundle budgets

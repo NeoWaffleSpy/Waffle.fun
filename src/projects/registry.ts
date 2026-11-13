@@ -44,6 +44,21 @@ export const projects: readonly ProjectMeta[] = [
     load: () => import('./planet'),
   },
   {
+    slug: 'gravity-courier',
+    title: 'Gravity Courier',
+    description:
+      'Slingshot cargo between the worlds of a procedural star system. New daily route, ghost replays, high scores.',
+    tags: ['3D', 'game', 'physics', 'daily'],
+    is3D: true,
+    thumbnail: {
+      // Star, two orbits, a planet and a dotted trajectory. Pure CSS.
+      background:
+        'radial-gradient(circle at 30% 55%, #fff4d0 0 3%, #ffc65a 5%, rgba(255,198,90,.25) 9%, transparent 14%), radial-gradient(circle at 74% 34%, #6fb2ff 0 3.4%, #1d4f8a 4.6%, transparent 5.2%), radial-gradient(ellipse 46% 40% at 30% 55%, transparent 98%, rgba(255,255,255,.18) 99%, transparent 100%), radial-gradient(ellipse 66% 58% at 30% 55%, transparent 98.5%, rgba(255,255,255,.14) 99.2%, transparent 100%), linear-gradient(160deg, #05060f, #120c2a)',
+      alt: 'A yellow star with orbit rings and a small blue planet',
+    },
+    load: () => import('./gravity-courier'),
+  },
+  {
     slug: 'waffle-tower',
     title: 'Waffle Tower',
     description:

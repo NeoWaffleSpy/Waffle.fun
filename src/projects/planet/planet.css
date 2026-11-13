@@ -70,3 +70,15 @@
   width: 100%;
   accent-color: #f4b448;
 }
+
+.planet__row {
+  flex-wrap: wrap;
+}
+
+.planet__forge {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7f87a6;
+}
